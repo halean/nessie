@@ -177,3 +177,5 @@ plots/
 /docs/build/*
 
 dist/*
+
+hf-cache/*

@@ -1,0 +1,43 @@
+FROM nvcr.io/nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+    
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv python3-dev \
+    build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install CUDA-enabled PyTorch (cu124) and minimal Python deps
+RUN python3 -m pip install --upgrade pip setuptools wheel \
+ && python3 -m pip install --index-url https://download.pytorch.org/whl/cu124 \
+      torch torchvision torchaudio \
+ && python3 -m pip install \
+      transformers scikit-learn scipy numpy
+
+# Persistent cache volume for HF models/tokenizers
+RUN mkdir -p /hf-cache/transformers && chmod -R 777 /hf-cache
+VOLUME ["/hf-cache"]
+
+# Optionally prewarm cache for a default model (override at build time)
+ARG MODEL_NAME=bert-base-uncased
+ENV MODEL_NAME=${MODEL_NAME}
+ENV HF_HOME=/hf-cache \
+    TRANSFORMERS_CACHE=/hf-cache/transformers
+# Ensure this step re-runs when MODEL_NAME changes by referencing it in the shell
+
+RUN python3 -m pip install pandas 
+RUN python3 -m pip install accelerate
+RUN python3 -m pip install datasets
+RUN python3 -m pip install sentencepiece
+RUN python3 -m pip install huggingface_hub
+
+
+# RUN python3 prefetch.py
+
+# ENTRYPOINT ["bash"]
+ENTRYPOINT ["python3", "/app/curriculum_spotter_min.py"]

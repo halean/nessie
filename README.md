@@ -158,6 +158,68 @@ or install it manually in the poetry environment. You can format the code via
 
 which should be run before every commit. 
 
+## Run with GPU (Docker)
+
+- Prerequisites: Install the NVIDIA GPU driver and the NVIDIA Container Toolkit. Verify with:
+  `docker run --rm --gpus all nvidia/cuda:11.3.1-base nvidia-smi`.
+- Build image (CUDA 11.3 + PyTorch 1.11 GPU, defined in `Dockerfile`):
+  `docker build -t nessie:gpu .`
+- Quick GPU check:
+  `docker run -it --rm --gpus all nessie:gpu python -c "import torch; print(torch.cuda.is_available())"`
+- Run tests:
+  `docker run -it --rm --gpus all nessie:gpu pytest -q`
+- Launch Jupyter Lab:
+  `docker run -it --rm --gpus all -p 8888:8888 nessie:gpu jupyter lab --ip 0.0.0.0 --no-browser`
+- Develop with your local code mounted:
+  `docker run -it --rm --gpus all -v "$PWD":/app nessie:gpu bash`
+  Inside the container for live-edit installs: `pip install -e .`
+
+Optional: docker compose (GPU)
+
+Use the following snippet as `docker-compose.yml` to build once and run with GPU. Note: Requires a recent Docker Compose that supports device reservations.
+
+```
+version: "3.8"
+services:
+  nessie:
+    build: .
+    image: nessie:gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # volumes:
+    #   - ./:/app
+    # command: pytest -q
+```
+
+Then run `docker compose up --build` (or `docker compose run --build nessie bash`).
+
+## Curriculum Spotter (Minimal)
+
+If you only need the Curriculum Spotter with minimal dependencies and newer Transformers, use the standalone script:
+
+- Script: `scripts/curriculum_spotter_min.py`
+- Deps: `transformers`, `torch`, `numpy`, `scipy`, `scikit-learn`
+
+Run locally (CSV with headers `text,label`):
+
+```
+python scripts/curriculum_spotter_min.py path/to/data.csv --model bert-base-uncased --epochs 8
+```
+
+Run on TSV: add `--tsv` and set column names via `--text-col` / `--label-col` if needed.
+
+Minimal GPU Docker image for just this script:
+
+```
+docker build -f Dockerfile.csmin -t cs-min .
+docker run --rm -it --gpus all -v "$PWD":/app cs-min /app/your_data_with_headers.tsv --tsv --text-col text --label-col label
+```
+
 ## Bibliography
 
 **Amiri, Hadi, Timothy Miller, and Guergana Savova. 2018.**
